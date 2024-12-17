@@ -1,6 +1,9 @@
-use evdev::{uinput::VirtualDeviceBuilder, uinput::VirtualDevice, AbsoluteAxisType, Device, EventType, InputEvent, InputEventKind, RelativeAxisType, UinputAbsSetup, AbsInfo, Key};
-use thiserror::Error;
+use evdev::{
+    uinput::VirtualDevice, uinput::VirtualDeviceBuilder, AbsInfo, AbsoluteAxisType, Device,
+    EventType, InputEvent, InputEventKind, Key, RelativeAxisType, UinputAbsSetup,
+};
 use std::fs;
+use thiserror::Error;
 
 const VJOYSTICK_NAME: &str = "mouse2joy";
 
@@ -31,124 +34,141 @@ static KEYS: [Key; 14] = [
 
 #[derive(Error, Debug)]
 pub enum Mouse2JoyError {
+    #[error("Failed to find a mouse device")]
+    NoMouseError,
 
-  #[error("Failed to find a mouse device")]
-  NoMouseError,
-
-  #[error("Failed to read a mouse input")]
-  FailedToReadInput,
-
+    #[error("Failed to read a mouse input")]
+    FailedToReadInput,
 }
 
-
 fn main() -> Result<(), Mouse2JoyError> {
+    // find all input devices that can be used as a mouse
+    let mut mouse_devices: Vec<Device> = fs::read_dir("/dev/input")
+        .unwrap()
+        .filter_map(Result::ok)
+        .filter_map(|entry| entry.path().into_os_string().to_str().map(String::from))
+        .filter_map(|path| {
+            Device::open(&path)
+                .ok()
+                .filter(|device| device.supported_events().contains(EventType::RELATIVE))
+        })
+        .collect();
 
-  // find all input devices that can be used as a mouse
-  let mut mouse_devices: Vec<Device> = fs::read_dir("/dev/input")
-    .unwrap()
-    .filter_map(Result::ok)
-    .filter_map(|entry| entry.path().into_os_string().to_str().map(String::from))
-    .filter_map(|path| {
-      Device::open(&path)
-        .ok()
-        .filter(|device| device.supported_events().contains(EventType::RELATIVE))
-    })
-    .collect();
-
-  if mouse_devices.is_empty() {
-    return Err(Mouse2JoyError::NoMouseError)
-  }
-
-  // ask user which mouse to use
-  if !(mouse_devices.len() == 1) {
-    println!("Several mouses detected, please select one:");
-    for (i,mouse) in mouse_devices.iter().enumerate() {
-      println!("{}: {}", i+1, mouse.name().unwrap_or("Unknown Device"));
+    if mouse_devices.is_empty() {
+        return Err(Mouse2JoyError::NoMouseError);
     }
-  }
-  
-  let index = input_in_range(1, mouse_devices.len());
-  let mut mouse = mouse_devices.remove(index-1);
-  println!("[INFO]: Using \"{}\" as an input device.", mouse.name().unwrap_or("Unknown Device")); // TODO:
-                                                                                                  // improve
-                                                                                                  // logging
 
-  // ungrab unwanted mouse devices
-  for mut device in mouse_devices {
-    device.ungrab().unwrap_or_else(|e| eprintln!("[WARNING]: Failed to ungrab device: {}", e));
-  }
-
-  // set up virtual joystick
-  let axis_info = AbsInfo::new(VALUE, -RANGE/2, RANGE/2, FUZZ, FLAT, RESOLUTION);
-  let mut joystick = create_joystick(axis_info, VJOYSTICK_NAME).unwrap();
-  
-  // fetch events and send them through to virtual joystick
-  let min: i32 = -512; // TODO: Make configurable
-  let max: i32 = 512; // TODO: Make configurable
-  let mut mouse_x_pos: i32 = 0;
-  let mut joystick_x_pos: i32;
-  loop {
-    match mouse.fetch_events() {
-      Ok(events) => {
-        for ev in events { // TODO: Error handling
-          if ev.kind() == InputEventKind::RelAxis(RelativeAxisType::REL_X) {
-            mouse_x_pos += ev.value();
-            joystick_x_pos = mouse_x_pos;
-            if joystick_x_pos < min { joystick_x_pos = min }
-            if joystick_x_pos > max { joystick_x_pos = max }
-            let ev = InputEvent::new(EventType::ABSOLUTE, AbsoluteAxisType::ABS_X.0, joystick_x_pos);
-            joystick.emit(&[ev]).unwrap(); // TODO: Error handling
-            println!("[INFO]: Moved joystick position to {}", joystick_x_pos);
-          }
+    // ask user which mouse to use
+    if !(mouse_devices.len() == 1) {
+        println!("Several mouses detected, please select one:");
+        for (i, mouse) in mouse_devices.iter().enumerate() {
+            println!("{}: {}", i + 1, mouse.name().unwrap_or("Unknown Device"));
         }
-      }
-      Err(e) => {
-        println!("[WARNING]: Failed to fetch mouse events: {}", e); // improve logging
-        continue;
-      }
     }
-  }
+
+    let index = input_in_range(1, mouse_devices.len());
+    let mut mouse = mouse_devices.remove(index - 1);
+    println!(
+        "[INFO]: Using \"{}\" as an input device.",
+        mouse.name().unwrap_or("Unknown Device")
+    ); // TODO:
+       // improve
+       // logging
+
+    // ungrab unwanted mouse devices
+    for mut device in mouse_devices {
+        device
+            .ungrab()
+            .unwrap_or_else(|e| eprintln!("[WARNING]: Failed to ungrab device: {}", e));
+    }
+
+    // set up virtual joystick
+    let axis_info = AbsInfo::new(VALUE, -RANGE / 2, RANGE / 2, FUZZ, FLAT, RESOLUTION);
+    let mut joystick = create_joystick(axis_info, VJOYSTICK_NAME).unwrap();
+
+    // fetch events and send them through to virtual joystick
+    let min: i32 = -512; // TODO: Make configurable
+    let max: i32 = 512; // TODO: Make configurable
+    let mut mouse_x_pos: i32 = 0;
+    let mut joystick_x_pos: i32;
+    loop {
+        match mouse.fetch_events() {
+            Ok(events) => {
+                for ev in events {
+                    if ev.kind() == InputEventKind::RelAxis(RelativeAxisType::REL_X) {
+                        mouse_x_pos += ev.value();
+                        joystick_x_pos = mouse_x_pos;
+                        if joystick_x_pos < min {
+                            joystick_x_pos = min
+                        }
+                        if joystick_x_pos > max {
+                            joystick_x_pos = max
+                        }
+                        let ev = InputEvent::new(
+                            EventType::ABSOLUTE,
+                            AbsoluteAxisType::ABS_X.0,
+                            joystick_x_pos,
+                        );
+                        match joystick.emit(&[ev]) {
+                          Ok(_) => {
+                            println!("[INFO]: Moved joystick position to {}", joystick_x_pos);
+                          },
+                          Err(e) => {
+                            println!("[WARNING]: Failed to emit joystick event: {}", e); // improve logging
+                            continue;
+                          }
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                println!("[WARNING]: Failed to fetch mouse events: {}", e); // improve logging
+                continue;
+            }
+        }
+    }
 }
 
 fn create_joystick(abs_info: AbsInfo, name: &str) -> std::io::Result<VirtualDevice> {
+    let abs_x = UinputAbsSetup::new(AbsoluteAxisType::ABS_X, abs_info);
+    let abs_y = UinputAbsSetup::new(AbsoluteAxisType::ABS_Y, abs_info);
 
-  let abs_x = UinputAbsSetup::new(AbsoluteAxisType::ABS_X, abs_info);
-  let abs_y = UinputAbsSetup::new(AbsoluteAxisType::ABS_Y, abs_info);
+    let mut keys = evdev::AttributeSet::new();
+    for button in KEYS {
+        keys.insert(button)
+    }
 
-  let mut keys = evdev::AttributeSet::new();
-  for button in KEYS {
-    keys.insert(button)
-  }
+    let joystick = VirtualDeviceBuilder::new()?
+        .name(name)
+        .with_absolute_axis(&abs_x)?
+        .with_absolute_axis(&abs_y)?
+        .with_keys(&keys)?
+        .build()?;
 
-  let joystick = VirtualDeviceBuilder::new()?
-    .name(name)
-    .with_absolute_axis(&abs_x)?
-    .with_absolute_axis(&abs_y)?
-    .with_keys(&keys)?
-    .build()?;
-
-  Ok(joystick)
-
+    Ok(joystick)
 }
 
 // ask user for a usize input within a given range
 fn input_in_range(min: usize, max: usize) -> usize {
-  let mut input = String::new();
-  
-  loop {
-    input.clear();
-    std::io::stdin()
-      .read_line(&mut input)
-      .expect("Failed to read line");
+    let mut input = String::new();
 
-    match input.trim().parse::<usize>() {
-      Ok(index) if index >= min && index <= max => {
-        return index;
-      }
-      _ => {
-        println!("Invalid selection. Please enter a number between {} and {}", min, max);
-        continue;
-      }
+    loop {
+        input.clear();
+        std::io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read line");
+
+        match input.trim().parse::<usize>() {
+            Ok(index) if index >= min && index <= max => {
+                return index;
+            }
+            _ => {
+                println!(
+                    "Invalid selection. Please enter a number between {} and {}",
+                    min, max
+                );
+                continue;
+            }
+        }
     }
-  }
 }
