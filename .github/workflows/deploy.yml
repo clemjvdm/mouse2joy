@@ -1,12 +1,13 @@
 name: Deploy
 
 on:
-  tags:
-    [ "v*" ]
-
+  push:
+    tags:
+      - "v*"
+      
 permissions:
   contents: write
-    
+
 env:
   CARGO_TERM_COLOR: always
   BINARY_NAME: mouse2joy
