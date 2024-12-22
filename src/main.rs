@@ -5,7 +5,7 @@ use evdev::{
 use std::fs;
 use thiserror::Error;
 use log::{info, warn, error, LevelFilter};
-use env_logger::{Builder};
+use env_logger::Builder;
 
 
 const VJOYSTICK_NAME: &str = "mouse2joy";
@@ -46,7 +46,7 @@ pub enum Mouse2JoyError {
 
 fn main() -> Result<(), Mouse2JoyError> {
 
-    // env_logger::init();
+    // initialize logger
     Builder::new()
         .filter_level(LevelFilter::Trace)  // This shows everything
         .init();
@@ -101,6 +101,7 @@ fn main() -> Result<(), Mouse2JoyError> {
         match mouse.fetch_events() {
             Ok(events) => {
                 for ev in events {
+                    info!("Fetched event");
                     if ev.kind() == InputEventKind::RelAxis(RelativeAxisType::REL_X) {
                         mouse_x_pos += ev.value();
                         joystick_x_pos = mouse_x_pos;
