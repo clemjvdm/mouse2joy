@@ -4,6 +4,9 @@ use evdev::{
 };
 use std::fs;
 use thiserror::Error;
+use log::{info, warn, error, LevelFilter};
+use env_logger::{Builder};
+
 
 const VJOYSTICK_NAME: &str = "mouse2joy";
 
@@ -34,7 +37,7 @@ static KEYS: [Key; 14] = [
 
 #[derive(Error, Debug)]
 pub enum Mouse2JoyError {
-    #[error("Failed to find a mouse device")]
+    #[error("Failed to find a mouse device. Make sure you are running the application with root priviledges.")]
     NoMouseError,
 
     #[error("Failed to read a mouse input")]
@@ -42,6 +45,12 @@ pub enum Mouse2JoyError {
 }
 
 fn main() -> Result<(), Mouse2JoyError> {
+
+    // env_logger::init();
+    Builder::new()
+        .filter_level(LevelFilter::Trace)  // This shows everything
+        .init();
+    
     // find all input devices that can be used as a mouse
     let mut mouse_devices: Vec<Device> = fs::read_dir("/dev/input")
         .unwrap()
@@ -55,6 +64,7 @@ fn main() -> Result<(), Mouse2JoyError> {
         .collect();
 
     if mouse_devices.is_empty() {
+        error!("{}", Mouse2JoyError::NoMouseError);
         return Err(Mouse2JoyError::NoMouseError);
     }
 
@@ -68,23 +78,19 @@ fn main() -> Result<(), Mouse2JoyError> {
 
     let index = input_in_range(1, mouse_devices.len());
     let mut mouse = mouse_devices.remove(index - 1);
-    println!(
-        "[INFO]: Using \"{}\" as an input device.",
-        mouse.name().unwrap_or("Unknown Device")
-    ); // TODO:
-       // improve
-       // logging
+    info!("Using \"{}\" as input device", mouse.name().unwrap_or("Unknown Device"));
 
     // ungrab unwanted mouse devices
     for mut device in mouse_devices {
         device
             .ungrab()
-            .unwrap_or_else(|e| eprintln!("[WARNING]: Failed to ungrab device: {}", e));
+            .unwrap_or_else(|e| warn!("Failed to ungrab device: {}", e));
     }
 
     // set up virtual joystick
     let axis_info = AbsInfo::new(VALUE, -RANGE / 2, RANGE / 2, FUZZ, FLAT, RESOLUTION);
     let mut joystick = create_joystick(axis_info, VJOYSTICK_NAME).unwrap();
+    info!("Virtual joystick created");
 
     // fetch events and send them through to virtual joystick
     let min: i32 = -512; // TODO: Make configurable
@@ -111,10 +117,10 @@ fn main() -> Result<(), Mouse2JoyError> {
                         );
                         match joystick.emit(&[ev]) {
                           Ok(_) => {
-                            println!("[INFO]: Moved joystick position to {}", joystick_x_pos);
+                            info!("Moved joystick position to {}", joystick_x_pos);
                           },
                           Err(e) => {
-                            println!("[WARNING]: Failed to emit joystick event: {}", e); // improve logging
+                            warn!("Failed to emit joystick event: {}", e);
                             continue;
                           }
                         }
@@ -122,7 +128,7 @@ fn main() -> Result<(), Mouse2JoyError> {
                 }
             }
             Err(e) => {
-                println!("[WARNING]: Failed to fetch mouse events: {}", e); // improve logging
+                warn!("Failed to fetch mouse events: {}", e);
                 continue;
             }
         }
