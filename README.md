@@ -14,6 +14,8 @@ But I can imagine it being useful in some scenarios, and since the tool is close
 ## To-do
 To do's before release 1.0:
 - [ ] Better CLI
-- [ ] Allow different levels of logging
+- [X] Allow different levels of logging
 - [ ] (maybe) A small GUI to indicate the current joystick position
-- [ ] (maybe) Configure joystick configuration through a .toml file
+- [X] (maybe) Configure joystick configuration through a .toml file
+- [ ] testing differnt configurations
+- [ ] user manual
