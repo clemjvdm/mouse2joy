@@ -7,15 +7,10 @@ use thiserror::Error;
 use log::{info, warn, error, LevelFilter};
 use env_logger::Builder;
 
+mod configuration;
+use configuration::Config;
 
 const VJOYSTICK_NAME: &str = "mouse2joy";
-
-// virtual joystick axis setup
-const RANGE: i32 = 1024;
-const FUZZ: i32 = 0;
-const FLAT: i32 = 0;
-const RESOLUTION: i32 = 1;
-const VALUE: i32 = 0; // initial position of joystick
 
 // virtual joystick buttons, won't be used but increase chances of joystick being recognized
 static KEYS: [Key; 14] = [
@@ -50,6 +45,9 @@ fn main() -> Result<(), Mouse2JoyError> {
     Builder::new()
         .filter_level(LevelFilter::Trace)  // This shows everything
         .init();
+
+    let conf = load_config();
+    info!("sensitivity: {}", conf.sensitivity);
     
     // find all input devices that can be used as a mouse
     let mut mouse_devices: Vec<Device> = fs::read_dir("/dev/input")
@@ -88,13 +86,13 @@ fn main() -> Result<(), Mouse2JoyError> {
     }
 
     // set up virtual joystick
-    let axis_info = AbsInfo::new(VALUE, -RANGE / 2, RANGE / 2, FUZZ, FLAT, RESOLUTION);
+    let axis_info = AbsInfo::new(conf.value(), conf.range_min(), conf.range_max(), conf.fuzz(), conf.flat(), conf.resolution());
     let mut joystick = create_joystick(axis_info, VJOYSTICK_NAME).unwrap();
     info!("Virtual joystick created");
 
     // fetch events and send them through to virtual joystick
-    let min: i32 = -512; // TODO: Make configurable
-    let max: i32 = 512; // TODO: Make configurable
+    let min: i32 = conf.range_min();
+    let max: i32 = conf.range_max();
     let mut mouse_x_pos: i32 = 0;
     let mut joystick_x_pos: i32;
     loop {
@@ -177,5 +175,23 @@ fn input_in_range(min: usize, max: usize) -> usize {
                 continue;
             }
         }
+    }
+}
+
+fn load_config() -> Config {
+    if Config::exists() {
+      match Config::load() {
+        Ok(conf) => {
+          info!("Using configuration file {}", Config::path());
+          conf
+        }
+        Err(_) => {
+          warn!("Problem laoding the configuration, using default");
+          Config::default()
+        }
+      }
+    } else {
+      info!("No configuration found, using default");
+      Config::default()
     }
 }

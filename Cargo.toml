@@ -9,6 +9,9 @@ thiserror = "1.0"
 log = "0.4.22"
 nix = "0.29.0"
 env_logger = "0.10"
+serde = { version = "1.0.216", features = ["derive"] }
+toml = "0.8.19"
+dirs = "5.0.1"
 
 [package.metadata]
 os = "linux"
