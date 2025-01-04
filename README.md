@@ -6,10 +6,11 @@ First go to the directory where you wish to download mouse2joy, then run the fol
 ```
 curl -L -O https://github.com/clemjvdm/mouse2joy/releases/download/v0.1.0/mouse2joy-v0.1.0-x86_64-unknown-linux-musl.tar.gz
 tar -xzf mouse2joy-v0.1.0-x86_64-unknown-linux-musl.tar.gz
+cp ./mouse2joy-v0.1.0-x86_64-unknown-linux-musl/mouse2joy .
 ```
 Now you should be able to run it from the same directory with:
 ```
-./mouse2joy-v0.1.0-x86_64-unknown-linux-musl
+./mouse2joy
 ```
 
 ## Configuration
