@@ -9,7 +9,7 @@ tar -xzf mouse2joy-v0.1.0-x86_64-unknown-linux-musl.tar.gz
 ```
 Now you should be able to run it from the same directory with:
 ```
-./mouse2joy-v0.1.0-x86_64-unknown-linux-musl.tar.gz
+./mouse2joy-v0.1.0-x86_64-unknown-linux-musl
 ```
 
 ## Configuration
