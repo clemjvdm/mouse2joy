@@ -1,5 +1,5 @@
 # Mouse2Joy
-An ultra simple CLI tool for linux which enables you to convert mouse input to a virtual joystick. Only x-axis input is converted since this is intended for racing games. I recommend pairing this tool with a joystick/gamepad visualization tool to have a clear view of how far you are steering ;).
+An ultra simple CLI tool for linux which enables you to convert mouse input to a virtual joystick. Only x-axis input is converted since this is intended for racing games. I recommend pairing this tool with a joystick/gamepad visualization tool to have a clear view of how far you are steering 😃.
 
 ## Usage
 You can grab a binary archive [here](https://github.com/clemjvdm/mouse2joy/releases), extract the binary and then run it ⚠️ **with root priviledges** ⚠️. Root priviledges are needed to read input devices.
